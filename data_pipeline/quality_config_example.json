@@ -1,0 +1,61 @@
+{
+  "description": "Example configuration for data quality pipeline",
+  "polymarket_config": {
+    "fail_on_validation_error": false,
+    "fail_on_cleaning_error": false,
+    "generate_reports": true,
+    "report_format": "json",
+    "quality_threshold": 75.0,
+    "save_reports": true,
+    "report_dir": "reports",
+    "log_level": "INFO",
+    "cleaning_config": {
+      "handle_missing": true,
+      "missing_strategy": "mean",
+      "missing_fields": ["probability", "volume"],
+      "detect_outliers": true,
+      "outlier_method": "iqr",
+      "outlier_fields": ["probability", "volume"],
+      "remove_outliers": false
+    }
+  },
+  "weather_config": {
+    "fail_on_validation_error": false,
+    "fail_on_cleaning_error": false,
+    "generate_reports": true,
+    "report_format": "json",
+    "quality_threshold": 80.0,
+    "save_reports": true,
+    "report_dir": "reports",
+    "log_level": "INFO",
+    "cleaning_config": {
+      "handle_missing": true,
+      "missing_strategy": "interpolate",
+      "missing_fields": ["temperature", "humidity", "wind_speed", "pressure"],
+      "detect_outliers": true,
+      "outlier_method": "zscore",
+      "outlier_fields": ["temperature", "humidity", "pressure", "wind_speed"],
+      "remove_outliers": false
+    }
+  },
+  "advanced_config": {
+    "batch_size": 1000,
+    "parallel_processing": false,
+    "memory_limit_mb": 512,
+    "timeout_seconds": 300,
+    "retry_attempts": 3,
+    "custom_validation_rules": [],
+    "alerts": {
+      "enable_email_alerts": false,
+      "email_recipients": [],
+      "alert_on_quality_below": 70.0,
+      "alert_on_processing_errors": true
+    },
+    "monitoring": {
+      "enable_metrics": true,
+      "metrics_endpoint": null,
+      "track_processing_time": true,
+      "track_error_rates": true
+    }
+  }
+}

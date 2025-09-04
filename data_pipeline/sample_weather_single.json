@@ -1,0 +1,21 @@
+{
+  "location_name": "London, UK",
+  "latitude": 51.5074,
+  "longitude": -0.1278,
+  "timestamp": "2025-09-04T12:00:00Z",
+  "temperature": 18.5,
+  "temperature_min": 15.2,
+  "temperature_max": 22.1,
+  "feels_like": 17.8,
+  "humidity": 72,
+  "pressure": 1013.2,
+  "wind_speed": 8.5,
+  "wind_direction": 180,
+  "precipitation": 0.0,
+  "weather_code": 3,
+  "weather_description": "Partly cloudy",
+  "visibility": 10000,
+  "uv_index": 4,
+  "alerts": "[]",
+  "raw_data": "{\"source\": \"met_office\", \"observation_time\": \"2025-09-04T12:00:00Z\"}"
+}

@@ -1,0 +1,31 @@
+[run]
+source =
+    backtesting_framework
+    data_pipeline
+    scripts
+    analysis
+    web
+omit =
+    */tests/*
+    */test_*
+    conftest.py
+    tests/
+    */__pycache__/*
+    */.pytest_cache/*
+
+[report]
+exclude_lines =
+    pragma: no cover
+    def __repr__
+    raise AssertionError
+    raise NotImplementedError
+    if __name__ == .__main__.:
+    class .*\bProtocol\):
+    @(abc\.)?abstractmethod
+    if TYPE_CHECKING:
+
+[html]
+directory = htmlcov
+
+[xml]
+output = coverage.xml

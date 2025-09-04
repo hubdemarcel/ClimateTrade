@@ -1,0 +1,85 @@
+{
+  "description": "Configuration for Weather2Geo integration with ClimateTrade data pipeline",
+  "weather2geo_settings": {
+    "cities_file": "../data/cities15000.txt",
+    "max_workers": 50,
+    "output_dir": "data/weather2geo_output",
+    "extraction_mode": "bulk",
+    "max_locations": 500,
+    "temp_tolerance": 1.0,
+    "enable_enrichment": true
+  },
+  "pipeline_integration": {
+    "auto_ingest": true,
+    "ingest_script": "data_pipeline/ingest_weather.py",
+    "db_path": "data/climatetrade.db",
+    "quality_threshold": 80.0,
+    "retention_days": 30
+  },
+  "automated_processing": {
+    "schedule_interval_hours": 6,
+    "batch_size": 10,
+    "extraction_modes": ["bulk", "conditions"],
+    "enable_scheduled_runs": true
+  },
+  "data_enrichment": {
+    "calculate_heat_index": true,
+    "calculate_wind_chill": true,
+    "comfort_level_classification": true,
+    "weather_severity_scoring": true,
+    "derived_metrics": [
+      "heat_index",
+      "wind_chill",
+      "comfort_level",
+      "weather_severity_score"
+    ]
+  },
+  "alerts": {
+    "enable_email": false,
+    "email_recipient": "admin@climatetrade.com",
+    "email_sender": "weather2geo@climatetrade.com",
+    "smtp_server": "smtp.gmail.com",
+    "smtp_port": 587,
+    "alert_on_failure": true,
+    "alert_on_low_quality": true,
+    "email_password": ""
+  },
+  "logging": {
+    "log_level": "INFO",
+    "log_file": "weather2geo_integration.log",
+    "enable_console_logging": true,
+    "max_log_size_mb": 100,
+    "log_retention_days": 30
+  },
+  "api_settings": {
+    "msn_weather_api_key": "UhJ4G66OjyLbn9mXARgajXLiLw6V75sHnfpU60aJBB",
+    "api_timeout_seconds": 5,
+    "max_retries": 3,
+    "rate_limit_delay": 0.1
+  },
+  "data_quality": {
+    "validation_rules": {
+      "temperature_range": [-50, 60],
+      "humidity_range": [0, 100],
+      "wind_speed_range": [0, 200],
+      "pressure_range": [800, 1100]
+    },
+    "required_fields": [
+      "location_name",
+      "latitude",
+      "longitude",
+      "timestamp",
+      "temperature"
+    ],
+    "outlier_detection": {
+      "method": "iqr",
+      "threshold": 1.5
+    }
+  },
+  "performance": {
+    "batch_processing": true,
+    "concurrent_requests": true,
+    "memory_limit_mb": 512,
+    "cpu_limit_percent": 80
+  }
+}
