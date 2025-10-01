@@ -13,6 +13,9 @@ import random
 def setup_database():
     """Set up the database with schema and mock data"""
     db_path = Path("../data/climatetrade.db")
+    # Make paths absolute relative to the project root
+    project_root = Path(__file__).parent.parent
+    db_path = project_root / "data/climatetrade.db"
 
     # Create database directory if it doesn't exist
     db_path.parent.mkdir(exist_ok=True)
@@ -22,6 +25,7 @@ def setup_database():
 
     # Read and execute schema
     schema_path = Path("../database/schema.sql")
+    schema_path = project_root / "database/schema.sql"
     if schema_path.exists():
         with open(schema_path, 'r') as f:
             schema_sql = f.read()

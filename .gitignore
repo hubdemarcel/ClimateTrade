@@ -41,3 +41,9 @@ ENV/
 # IDE / Editor specific
 .idea/
 .vscode/
+
+# Node.js dependencies
+node_modules/
+
+# macOS specific
+.DS_Store

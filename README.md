@@ -1,4 +1,4 @@
-﻿# ClimaTrade AI - Weather-Informed Trading Intelligence
+﻿﻿# ClimaTrade AI - Weather-Informed Trading Intelligence
 
 ## Executive Summary
 
@@ -64,7 +64,7 @@ To create an automated trading system that uses weather patterns and meteorologi
 
 ```bash
 # Clone the repository
-git clone <repository-url>
+git clone https://github.com/hubdemarcel/ClimateTrade.git
 cd climatetrade
 
 # Set up Python environment
