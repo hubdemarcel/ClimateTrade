@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """
-Polymarket Web Scraper for NYC Temperature Event
+Polymarket Web Scraper for Weather Events
 
-This script scrapes market data from Polymarket event pages and outputs to CSV format.
+This script scrapes market data from Polymarket weather event pages (focused on London and NYC),
+discovers new daily events, and outputs to CSV format with daily scheduling.
 Includes error handling, rate limiting, and data validation.
 
 Legal Notice: This scraper is for educational/research purposes only.
@@ -13,9 +14,16 @@ import time
 import logging
 import csv
 import json
+import re
 from datetime import datetime
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Set
 from dataclasses import dataclass, asdict
+
+try:
+    import schedule
+except ImportError:
+    schedule = None
+    logging.warning("Schedule module not available. Daily scheduling disabled.")
 
 import requests
 from bs4 import BeautifulSoup
@@ -66,7 +74,7 @@ class RateLimiter:
 class PolymarketScraper:
     """Main scraper class for Polymarket data"""
 
-    def __init__(self, use_selenium: bool = True, headless: bool = True):
+    def __init__(self, use_selenium: bool = False, headless: bool = True):
         self.use_selenium = use_selenium
         self.headless = headless
         self.session = requests.Session()
@@ -351,28 +359,82 @@ class PolymarketScraper:
         if hasattr(self, 'driver'):
             self.driver.quit()
 
+    def discover_new_events(self, known_urls: Set[str]) -> List[str]:
+        """
+        Discover new weather events from Polymarket's weather category page
 
-def main():
-    """Main function to run the scraper"""
-    # Target URL for NYC temperature event
-    url = "https://polymarket.com/event/highest-temperature-in-nyc-on-september-3-891?tid=1756943550565"
+        Args:
+            known_urls: Set of already known event URLs
+
+        Returns:
+            List of new event URLs
+        """
+        new_urls = []
+        browse_url = "https://polymarket.com/browse/weather"
+
+        try:
+            self.rate_limiter.wait_if_needed()
+
+            if self.use_selenium:
+                self.driver.get(browse_url)
+                WebDriverWait(self.driver, 20).until(
+                    EC.presence_of_element_located((By.TAG_NAME, "body"))
+                )
+                time.sleep(3)
+                soup = BeautifulSoup(self.driver.page_source, 'html.parser')
+            else:
+                response = self.session.get(browse_url, timeout=30)
+                response.raise_for_status()
+                soup = BeautifulSoup(response.content, 'html.parser')
+
+            # Find event links
+            event_links = soup.find_all('a', href=re.compile(r'/event/highest-temperature-in-(london|nyc)-on-'))
+
+            for link in event_links:
+                url = f"https://polymarket.com{link['href']}"
+                if url not in known_urls:
+                    new_urls.append(url)
+                    logging.info(f"Discovered new event: {url}")
+
+        except Exception as e:
+            logging.error(f"Error discovering new events: {e}")
+
+        return new_urls
+
+
+def run_daily_scrape():
+    """Function to run the daily scraping job"""
+    # Known URLs for London and NYC
+    known_urls = {
+        "https://polymarket.com/event/highest-temperature-in-london-on-september-2?tid=1756960430533",
+        "https://polymarket.com/event/highest-temperature-in-nyc-on-september-3-891"
+    }
 
     # Initialize scraper
     scraper = PolymarketScraper(use_selenium=True, headless=True)
 
     try:
-        # Scrape the data
-        logging.info(f"Starting scrape of {url}")
-        market_data = scraper.scrape_event_page(url)
+        # Discover new events
+        logging.info("Discovering new events...")
+        new_urls = scraper.discover_new_events(known_urls)
+        all_urls = list(known_urls) + new_urls
+
+        all_market_data = []
+
+        # Scrape all events
+        for url in all_urls:
+            logging.info(f"Starting scrape of {url}")
+            market_data = scraper.scrape_event_page(url)
+            all_market_data.extend(market_data)
 
         # Validate data
-        validated_data = scraper.validate_data(market_data)
-        logging.info(f"Validated {len(validated_data)} records")
+        validated_data = scraper.validate_data(all_market_data)
+        logging.info(f"Validated {len(validated_data)} records from {len(all_urls)} events")
 
         # Save to CSV
         if validated_data:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = f"polymarket_nyc_temperature_{timestamp}.csv"
+            filename = f"../../data_pipeline/data/polymarket_weather_data_{timestamp}.csv"
             scraper.save_to_csv(validated_data, filename)
         else:
             logging.warning("No valid data to save")
@@ -382,6 +444,28 @@ def main():
 
     finally:
         scraper.close()
+
+
+def main():
+    """Main function to run the scraper with daily scheduling"""
+    logging.info("Starting Polymarket Weather Scraper")
+
+    # Run initial scrape
+    run_daily_scrape()
+
+    if schedule:
+        # Schedule daily scrape at 2 AM UTC
+        schedule.every().day.at("02:00").do(run_daily_scrape)
+        logging.info("Scheduled daily scraping at 02:00 UTC. Press Ctrl+C to stop.")
+
+        try:
+            while True:
+                schedule.run_pending()
+                time.sleep(60)  # Check every minute
+        except KeyboardInterrupt:
+            logging.info("Stopping scheduler...")
+    else:
+        logging.info("Schedule module not available. Run manually for daily scraping.")
 
 
 if __name__ == "__main__":

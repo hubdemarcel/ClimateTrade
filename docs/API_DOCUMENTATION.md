@@ -6,11 +6,14 @@
 2. [Authentication](#authentication)
 3. [REST API Endpoints](#rest-api-endpoints)
 4. [WebSocket API](#websocket-api)
-5. [Python API Reference](#python-api-reference)
+5. [Python SDK](#python-sdk)
 6. [Integration Examples](#integration-examples)
-7. [Error Handling](#error-handling)
-8. [Rate Limiting](#rate-limiting)
-9. [SDKs and Libraries](#sdks-and-libraries)
+7. [Met Office API Integration Guide - London Weather Data](#met-office-api-integration-guide---london-weather-data)
+8. [Error Handling](#error-handling)
+9. [Rate Limiting](#rate-limiting)
+10. [SDKs and Libraries](#sdks-and-libraries)
+11. [Data Validation](#data-validation)
+12. [Development](#development)
 
 ## Overview
 
@@ -97,6 +100,74 @@ POST /api/v1/auth/logout
 Authorization: Bearer access_token_here
 ```
 
+### Backend Authentication Middleware
+
+```python
+# backend/auth.py
+from fastapi import HTTPException, Depends, status
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+import jwt
+import os
+from datetime import datetime, timedelta
+
+security = HTTPBearer()
+
+SECRET_KEY = os.getenv("JWT_SECRET_KEY", "your-secret-key")
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 30
+
+def create_access_token(data: dict):
+    to_encode = data.copy()
+    expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    to_encode.update({"exp": expire})
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt
+
+def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    try:
+        payload = jwt.decode(credentials.credentials, SECRET_KEY, algorithms=[ALGORITHM])
+        username: str = payload.get("sub")
+        if username is None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid authentication credentials",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        return username
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token has expired",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    except jwt.JWTError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid authentication credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+```
+
+### Apply Authentication to Protected Endpoints
+
+```python
+# main.py - Update endpoints to require authentication
+from .auth import verify_token
+
+@app.get("/api/trading/performance")
+async def get_trading_performance(
+    days: int = 30,
+    username: str = Depends(verify_token)
+):
+    """Get trading performance data (protected)"""
+    # ... existing code ...
+
+@app.get("/api/trading/positions")
+async def get_current_positions(username: str = Depends(verify_token)):
+    """Get current trading positions (protected)"""
+    # ... existing code ...
+```
+
 ## REST API Endpoints
 
 ### Weather Data Endpoints
@@ -112,6 +183,7 @@ GET /api/v1/weather/{location}
 - `location` (path): Location name or coordinates (e.g., "London,UK" or "51.5074,-0.1278")
 - `units` (query, optional): "metric" or "imperial" (default: "metric")
 - `source` (query, optional): Weather data source (default: "auto")
+  - Available sources: "open_meteo", "met_office", "meteostat", "auto"
 
 **Response:**
 
@@ -155,48 +227,6 @@ GET /api/v1/weather/{location}/forecast
 - `days` (query, optional): Number of days (1-14, default: 7)
 - `hourly` (query, optional): Include hourly data (default: false)
 
-**Response:**
-
-```json
-{
-  "success": true,
-  "data": {
-    "location": "London, UK",
-    "forecast": [
-      {
-        "date": "2024-01-02",
-        "temperature_max": 22.0,
-        "temperature_min": 15.0,
-        "precipitation": 2.5,
-        "weather_code": 500,
-        "weather_description": "Light rain"
-      }
-    ],
-    "hourly": [
-      {
-        "timestamp": "2024-01-02T00:00:00Z",
-        "temperature": 18.0,
-        "precipitation": 0.0,
-        "weather_code": 800
-      }
-    ]
-  }
-}
-```
-
-#### Get Historical Weather
-
-```http
-GET /api/v1/weather/{location}/history
-```
-
-**Parameters:**
-
-- `location` (path): Location identifier
-- `start_date` (query): Start date (YYYY-MM-DD)
-- `end_date` (query): End date (YYYY-MM-DD)
-- `frequency` (query, optional): "hourly" or "daily" (default: "daily")
-
 ### Polymarket Data Endpoints
 
 #### Get Market Data
@@ -225,33 +255,6 @@ GET /api/v1/markets/{market_id}
 }
 ```
 
-#### Get Order Book
-
-```http
-GET /api/v1/markets/{market_id}/orderbook
-```
-
-**Response:**
-
-```json
-{
-  "success": true,
-  "data": {
-    "market_id": "0x123...",
-    "bids": [
-      { "price": 0.6, "size": 1000, "outcome": "Yes" },
-      { "price": 0.55, "size": 2000, "outcome": "Yes" }
-    ],
-    "asks": [
-      { "price": 0.45, "size": 1500, "outcome": "No" },
-      { "price": 0.5, "size": 800, "outcome": "No" }
-    ],
-    "spread": 0.15,
-    "mid_price": 0.525
-  }
-}
-```
-
 #### Place Order
 
 ```http
@@ -274,26 +277,6 @@ Content-Type: application/json
 }
 ```
 
-**Response:**
-
-```json
-{
-  "success": true,
-  "data": {
-    "order_id": "order_123456",
-    "status": "pending",
-    "market_id": "0x123...",
-    "outcome": "Yes",
-    "side": "buy",
-    "price": 0.6,
-    "size": 1000,
-    "filled_size": 0,
-    "remaining_size": 1000,
-    "timestamp": "2024-01-01T12:00:00Z"
-  }
-}
-```
-
 ### Trading and Strategy Endpoints
 
 #### Get Portfolio
@@ -301,34 +284,6 @@ Content-Type: application/json
 ```http
 GET /api/v1/portfolio
 Authorization: Bearer your_token
-```
-
-**Response:**
-
-```json
-{
-  "success": true,
-  "data": {
-    "total_value": 10500.0,
-    "cash_balance": 2500.0,
-    "positions": [
-      {
-        "market_id": "0x123...",
-        "outcome": "Yes",
-        "quantity": 1000,
-        "average_price": 0.55,
-        "current_price": 0.6,
-        "unrealized_pnl": 50.0,
-        "realized_pnl": 0.0
-      }
-    ],
-    "performance": {
-      "total_return": 0.05,
-      "sharpe_ratio": 1.2,
-      "max_drawdown": 0.02
-    }
-  }
-}
 ```
 
 #### Run Backtest
@@ -356,50 +311,6 @@ Content-Type: application/json
 }
 ```
 
-**Response:**
-
-```json
-{
-  "success": true,
-  "data": {
-    "backtest_id": "bt_123456",
-    "status": "running",
-    "progress": 0.0,
-    "estimated_completion": "2024-01-01T12:30:00Z"
-  }
-}
-```
-
-#### Get Backtest Results
-
-```http
-GET /api/v1/backtest/{backtest_id}/results
-```
-
-**Response:**
-
-```json
-{
-  "success": true,
-  "data": {
-    "backtest_id": "bt_123456",
-    "status": "completed",
-    "results": {
-      "total_return": 0.125,
-      "annualized_return": 0.15,
-      "sharpe_ratio": 1.8,
-      "max_drawdown": 0.08,
-      "win_rate": 0.62,
-      "total_trades": 45,
-      "equity_curve": [
-        { "date": "2024-01-01", "value": 10000.0 },
-        { "date": "2024-12-31", "value": 11250.0 }
-      ]
-    }
-  }
-}
-```
-
 ### System Management Endpoints
 
 #### Health Check
@@ -408,80 +319,10 @@ GET /api/v1/backtest/{backtest_id}/results
 GET /api/v1/health
 ```
 
-**Response:**
-
-```json
-{
-  "success": true,
-  "data": {
-    "status": "healthy",
-    "services": {
-      "database": "ok",
-      "redis": "ok",
-      "weather_apis": "ok",
-      "polymarket_api": "ok",
-      "backtesting_engine": "ok"
-    },
-    "uptime": "7d 4h 23m",
-    "version": "1.2.3"
-  }
-}
-```
-
 #### System Metrics
 
 ```http
 GET /api/v1/metrics
-```
-
-**Response:**
-
-```json
-{
-  "success": true,
-  "data": {
-    "system": {
-      "cpu_usage": 45.2,
-      "memory_usage": 62.8,
-      "disk_usage": 34.1
-    },
-    "application": {
-      "active_connections": 23,
-      "requests_per_second": 12.5,
-      "average_response_time": 245
-    },
-    "trading": {
-      "active_positions": 8,
-      "pending_orders": 3,
-      "daily_volume": 125000
-    }
-  }
-}
-```
-
-#### Configuration
-
-```http
-GET /api/v1/config
-Authorization: Bearer admin_token
-```
-
-**Response:**
-
-```json
-{
-  "success": true,
-  "data": {
-    "environment": "production",
-    "database_url": "postgresql://...",
-    "api_rate_limit": 1000,
-    "features": {
-      "real_trading_enabled": true,
-      "backtesting_enabled": true,
-      "auto_scaling_enabled": true
-    }
-  }
-}
 ```
 
 ## WebSocket API
@@ -567,89 +408,7 @@ ws.onmessage = (event) => {
 };
 ```
 
-### WebSocket Message Types
-
-#### Client Messages
-
-```javascript
-// Authentication
-{
-  "type": "auth",
-  "token": "jwt_token_here"
-}
-
-// Subscription
-{
-  "type": "subscribe",
-  "channel": "market|weather|trading",
-  "market_id": "optional_market_id",
-  "location": "optional_location"
-}
-
-// Unsubscription
-{
-  "type": "unsubscribe",
-  "channel": "market|weather|trading",
-  "market_id": "optional_market_id"
-}
-
-// Ping
-{
-  "type": "ping"
-}
-```
-
-#### Server Messages
-
-```javascript
-// Authentication response
-{
-  "type": "auth_success",
-  "user_id": "user_123"
-}
-
-// Market update
-{
-  "type": "market_update",
-  "market_id": "0x123...",
-  "probabilities": [0.65, 0.35],
-  "volume": 125000,
-  "timestamp": "2024-01-01T12:00:00Z"
-}
-
-// Weather update
-{
-  "type": "weather_update",
-  "location": "London,UK",
-  "temperature": 18.5,
-  "humidity": 72,
-  "timestamp": "2024-01-01T12:00:00Z"
-}
-
-// Order update
-{
-  "type": "order_update",
-  "order_id": "order_123",
-  "status": "filled|partial|canceled",
-  "filled_size": 1000,
-  "remaining_size": 0
-}
-
-// Error
-{
-  "type": "error",
-  "code": "INVALID_TOKEN",
-  "message": "Authentication token is invalid"
-}
-
-// Pong
-{
-  "type": "pong",
-  "timestamp": "2024-01-01T12:00:00Z"
-}
-```
-
-## Python API Reference
+## Python SDK
 
 ### Core Classes
 
@@ -811,88 +570,6 @@ comparison = bt_client.compare_strategies(
 )
 ```
 
-### Data Models
-
-#### WeatherData
-
-```python
-@dataclass
-class WeatherData:
-    location_name: str
-    coordinates: Coordinates
-    temperature: float
-    feels_like: Optional[float]
-    humidity: int
-    pressure: int
-    wind_speed: float
-    wind_direction: Optional[int]
-    precipitation: Optional[float]
-    weather_code: int
-    weather_description: str
-    visibility: Optional[int]
-    uv_index: Optional[float]
-    timestamp: datetime
-    source: str
-    data_quality_score: float
-```
-
-#### MarketData
-
-```python
-@dataclass
-class MarketData:
-    market_id: str
-    event_title: str
-    question: str
-    outcomes: List[str]
-    probabilities: List[float]
-    volume: float
-    liquidity: float
-    end_date: datetime
-    active: bool
-    closed: bool
-    archived: bool
-```
-
-#### OrderData
-
-```python
-@dataclass
-class OrderData:
-    order_id: str
-    market_id: str
-    outcome: str
-    side: str  # 'buy' or 'sell'
-    order_type: str  # 'market' or 'limit'
-    price: Optional[float]
-    size: float
-    filled_size: float
-    remaining_size: float
-    status: str
-    timestamp: datetime
-```
-
-#### BacktestResult
-
-```python
-@dataclass
-class BacktestResult:
-    backtest_id: str
-    strategy_name: str
-    start_date: date
-    end_date: date
-    total_return: float
-    annualized_return: float
-    volatility: float
-    sharpe_ratio: float
-    max_drawdown: float
-    win_rate: float
-    total_trades: int
-    equity_curve: List[Dict[str, Any]]
-    metrics: Dict[str, Any]
-    execution_time_seconds: float
-```
-
 ## Integration Examples
 
 ### Python Integration
@@ -989,61 +666,6 @@ bot = WeatherTradingBot(api_key='your_key', jwt_token='your_token')
 asyncio.run(bot.start())
 ```
 
-#### Backtesting Integration
-
-```python
-from climatetrade.backtesting import BacktestingClient
-import matplotlib.pyplot as plt
-
-def run_strategy_comparison():
-    client = BacktestingClient(api_key='your_api_key')
-
-    # Define strategies to compare
-    strategies = ['temperature_threshold', 'precipitation', 'wind_speed']
-    market_ids = ['0x123...', '0x456...', '0x789...']
-    locations = ['London,UK', 'New York,NY', 'Tokyo,JP']
-
-    # Run backtests for all strategies
-    results = []
-    for strategy in strategies:
-        result = client.run_backtest(
-            strategy_name=strategy,
-            market_ids=market_ids,
-            locations=locations,
-            start_date='2024-01-01',
-            end_date='2024-12-31',
-            initial_capital=10000.0
-        )
-        results.append(result)
-
-    # Compare results
-    comparison = client.compare_strategies(
-        strategy_names=strategies,
-        market_ids=market_ids,
-        start_date='2024-01-01',
-        end_date='2024-12-31'
-    )
-
-    # Plot equity curves
-    plt.figure(figsize=(12, 8))
-    for result in results:
-        plt.plot(result.equity_curve_dates, result.equity_curve_values,
-                label=result.strategy_name)
-
-    plt.title('Strategy Comparison - Equity Curves')
-    plt.xlabel('Date')
-    plt.ylabel('Portfolio Value ($)')
-    plt.legend()
-    plt.show()
-
-    # Print performance summary
-    print("Performance Summary:")
-    print("-" * 50)
-    for result in results:
-        print(f"{result.strategy_name}:")
-        print(".2%"        print(".2f"        print(".2%"        print()
-```
-
 ### JavaScript/Node.js Integration
 
 #### Web Dashboard Integration
@@ -1106,138 +728,479 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 ```
 
-### Trading Algorithm Example
+#### Enhanced Error Handling for Frontend
+
+```typescript
+// Enhanced WeatherDashboard.tsx
+const WeatherDashboard: React.FC<WeatherDashboardProps> = ({
+  refreshTrigger,
+}) => {
+  const [weatherData, setWeatherData] = useState<WeatherData[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
+  const maxRetries = 3;
+
+  const fetchWeatherData = async (isRetry = false) => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const response = await axios.get('/api/weather/data?hours=24');
+      setWeatherData(response.data);
+
+      // Reset retry count on success
+      setRetryCount(0);
+    } catch (error) {
+      console.error('Failed to fetch weather data:', error);
+
+      const errorMessage = axios.isAxiosError(error)
+        ? `Network error: ${error.message}`
+        : 'Failed to load weather data';
+
+      setError(errorMessage);
+
+      // Implement retry logic for network errors
+      if (
+        axios.isAxiosError(error) &&
+        error.code === 'NETWORK_ERROR' &&
+        retryCount < maxRetries
+      ) {
+        setRetryCount((prev) => prev + 1);
+        setTimeout(() => fetchWeatherData(true), 2000 * (retryCount + 1)); // Exponential backoff
+        return;
+      }
+
+      // Fallback to empty data
+      setWeatherData([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Add error display in render
+  if (error) {
+    return (
+      <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+        <div className="flex items-center">
+          <AlertTriangle className="w-5 h-5 text-red-600 mr-2" />
+          <span className="text-red-800 font-medium">
+            Error Loading Weather Data
+          </span>
+        </div>
+        <p className="text-red-700 mt-2">{error}</p>
+        <button
+          onClick={() => fetchWeatherData()}
+          className="mt-3 bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
+
+  // ... rest of component
+};
+```
+
+#### Caching Strategy Implementation
+
+```typescript
+// hooks/useApiCache.ts
+import { useState, useEffect, useCallback } from 'react';
+
+interface CacheEntry<T> {
+  data: T;
+  timestamp: number;
+  expiresAt: number;
+}
+
+interface CacheOptions {
+  duration: number; // milliseconds
+  key: string;
+}
+
+export function useApiCache<T>(
+  fetcher: () => Promise<T>,
+  options: CacheOptions,
+  dependencies: any[] = []
+): [T | null, boolean, Error | null, () => Promise<void>] {
+  const [data, setData] = useState<T | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
+
+  const fetchData = useCallback(
+    async (force = false) => {
+      const cacheKey = `api_cache_${options.key}`;
+      const now = Date.now();
+
+      // Check cache first
+      if (!force) {
+        try {
+          const cached = localStorage.getItem(cacheKey);
+          if (cached) {
+            const entry: CacheEntry<T> = JSON.parse(cached);
+            if (entry.expiresAt > now) {
+              setData(entry.data);
+              setError(null);
+              return;
+            }
+          }
+        } catch (e) {
+          // Cache corrupted, ignore
+        }
+      }
+
+      // Fetch fresh data
+      setLoading(true);
+      try {
+        const result = await fetcher();
+        setData(result);
+        setError(null);
+
+        // Cache the result
+        const entry: CacheEntry<T> = {
+          data: result,
+          timestamp: now,
+          expiresAt: now + options.duration,
+        };
+        localStorage.setItem(cacheKey, JSON.stringify(entry));
+      } catch (err) {
+        setError(err as Error);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [fetcher, options]
+  );
+
+  useEffect(() => {
+    fetchData();
+  }, dependencies);
+
+  const refetch = () => fetchData(true);
+
+  return [data, loading, error, refetch];
+}
+```
+
+## Met Office API Integration Guide - London Weather Data
+
+### Overview
+
+This guide provides complete integration instructions for the Met Office Weather DataHub API, optimized for London weather data collection with 350 daily API calls. The system uses an intelligent strategy: hourly data collection with enhanced 15-minute intervals during peak trading hours (12:00-18:00 GMT).
+
+**Target Location**: London, UK (51.5074, -0.1278)  
+**Daily API Limit**: 350 calls  
+**Strategy**: Hourly + Peak 15-minute intervals
+
+### Optimized Call Distribution Strategy
+
+#### Daily Call Allocation (350 total)
+
+```
+🏙️ LONDON INTENSIVE STRATEGY:
+
+📅 BASE COVERAGE (42 calls):
+├── 00:00-11:59: Hourly data (12 calls)
+├── 12:00-18:00: 15-minute intervals (24 calls)
+├── 18:01-23:59: Hourly data (6 calls)
+└── TOTAL BASE: 42 calls
+
+🔄 ADDITIONAL USAGE (308 calls available):
+├── London extended forecasts: 100 calls
+├── London historical data: 100 calls
+├── Data quality validation: 50 calls
+├── Weather alerts & events: 40 calls
+└── Emergency buffer: 18 calls
+```
+
+### Peak Hours Schedule (12:00-18:00 GMT)
+
+```
+🕐 15-MINUTE INTERVALS DURING TRADING HOURS:
+12:00, 12:15, 12:30, 12:45
+13:00, 13:15, 13:30, 13:45
+14:00, 14:15, 14:30, 14:45
+15:00, 15:15, 15:30, 15:45
+16:00, 16:15, 16:30, 16:45
+17:00, 17:15, 17:30, 17:45
+
+Total: 6 hours × 4 calls = 24 calls
+```
+
+### Configuration Setup
+
+#### Step 1: Configure API Key
+
+Edit [`web/backend/.env`](../web/backend/.env):
+
+```bash
+# Replace the mock key
+MET_OFFICE_API_KEY=your_real_api_key_here
+
+# Add optimization configuration
+MET_OFFICE_BASE_URL=https://data.hub.api.metoffice.gov.uk/sitespecific/v0/point/
+MET_OFFICE_DAILY_LIMIT=350
+MET_OFFICE_HOURLY_LIMIT=15
+MET_OFFICE_CACHE_TTL=1800
+MET_OFFICE_PRIORITY_ENABLED=true
+MET_OFFICE_FALLBACK_ENABLED=true
+
+# London-specific configuration
+MET_OFFICE_LONDON_LATITUDE=51.5074
+MET_OFFICE_LONDON_LONGITUDE=-0.1278
+MET_OFFICE_LONDON_PRIORITY=CRITICAL
+MET_OFFICE_PEAK_START_HOUR=12
+MET_OFFICE_PEAK_END_HOUR=18
+MET_OFFICE_PEAK_INTERVAL=15
+MET_OFFICE_STANDARD_INTERVAL=60
+```
+
+#### Step 2: Test API Connectivity
+
+```bash
+cd scripts
+python met_office_london_weather.py --apikey YOUR_API_KEY --current --json
+```
+
+**Expected Response:**
+
+```json
+{
+  "location": "London",
+  "temperature": 15.2,
+  "weather_type": 3,
+  "wind_speed": 8,
+  "humidity": 72,
+  "precipitation": 0.1,
+  "timestamp": "2025-09-10T05:00:00Z"
+}
+```
+
+#### Step 3: Database Integration
+
+Add Met Office as a data source:
+
+```bash
+cd database
+python -c "
+import sqlite3
+conn = sqlite3.connect('../data/climatetrade.db')
+cursor = conn.cursor()
+cursor.execute('''
+    INSERT OR IGNORE INTO weather_sources
+    (source_name, description, api_endpoint, api_key_required, rate_limit_per_hour, active)
+    VALUES (?, ?, ?, ?, ?, ?)
+''', ['met_office', 'UK Met Office Weather DataHub',
+      'https://data.hub.api.metoffice.gov.uk/sitespecific/v0/point/',
+      1, 15, 1])
+conn.commit()
+print('✅ Met Office added as data source')
+conn.close()
+"
+```
+
+### System Architecture
+
+#### Core Components
+
+##### 1. Optimized Client (`scripts/met_office_optimized_client.py`)
 
 ```python
-from climatetrade.client import ClimaTradeClient
-from climatetrade.weather import WeatherDataClient
-import time
+class MetOfficeOptimizedClient:
+    """Met Office client with intelligent rate limiting and caching"""
 
-class WeatherArbitrageBot:
-    def __init__(self, api_key, jwt_token):
-        self.client = ClimaTradeClient(api_key=api_key, jwt_token=jwt_token)
-        self.weather_client = WeatherDataClient(api_key=api_key)
+    def __init__(self, api_key: str):
+        self.api_key = api_key
+        self.rate_limiter = MetOfficeRateLimiter()
+        self.cache_manager = MetOfficeCacheManager()
+        self.london_coords = (51.5074, -0.1278)
 
-        # Trading parameters
-        self.max_position_size = 0.1  # 10% of portfolio
-        self.min_probability_edge = 0.05  # 5% edge required
-        self.max_spread = 0.1  # Maximum acceptable spread
+    def get_london_weather(self, priority: CallPriority) -> Dict:
+        """Get London weather data with intelligent scheduling"""
+        # Check cache first
+        # Verify rate limits
+        # Make API call if needed
+        # Store in cache
+        return weather_data
+```
 
-    def identify_arbitrage_opportunities(self):
-        """Find markets where weather data suggests mispriced probabilities"""
-        opportunities = []
+##### 2. Rate Limiter (`scripts/met_office_rate_limiter.py`)
 
-        # Get active weather-related markets
-        markets = self.client.get_markets(
-            query='weather temperature',
-            active=True,
-            limit=50
-        )
+```python
+class MetOfficeRateLimiter:
+    """Intelligent rate limiting for 350 daily calls"""
 
-        for market in markets:
-            # Extract location from market question
-            location = self.extract_location_from_question(market.question)
-            if not location:
-                continue
+    def __init__(self):
+        self.daily_limit = 350
+        self.hourly_limit = 15
+        self.london_schedule = self._init_london_schedule()
 
-            # Get current weather
-            weather = self.weather_client.get_current_weather(location)
+    def should_make_london_call(self) -> bool:
+        """Determine if London call should be made based on schedule"""
+        now = datetime.now()
+        hour, minute = now.hour, now.minute
 
-            # Get market data
-            orderbook = self.client.get_orderbook(market.market_id)
+        if 12 <= hour < 18:  # Peak hours
+            return minute in [0, 15, 30, 45]
+        else:  # Standard hours
+            return minute == 0
+```
 
-            # Analyze for arbitrage opportunity
-            opportunity = self.analyze_market_weather_arbitrage(
-                market, weather, orderbook
-            )
+##### 3. Multi-Level Caching (`scripts/met_office_cache_manager.py`)
 
-            if opportunity:
-                opportunities.append(opportunity)
+```python
+class MetOfficeCacheManager:
+    """Multi-level caching to minimize API calls"""
 
-        return opportunities
+    def __init__(self):
+        self.memory_cache = {}      # Level 1: 5 minutes
+        self.db_cache_ttl = 1800    # Level 2: 30 minutes
+        self.extended_cache_ttl = 7200  # Level 3: 2 hours
 
-    def analyze_market_weather_arbitrage(self, market, weather, orderbook):
-        """Analyze if there's an arbitrage opportunity"""
-        # This is a simplified example - implement your actual logic
+    def get_cached_london_data(self) -> Optional[Dict]:
+        """Get cached London data from appropriate level"""
+        # Check memory cache first
+        # Check database cache
+        # Check extended cache
+        return cached_data
+```
 
-        # Example: Market about "Will temperature exceed 25°C?"
-        if 'temperature' in market.question.lower() and '25' in market.question:
-            # Current temperature suggests outcome
-            predicted_outcome = 'Yes' if weather.temperature > 25 else 'No'
+### Weather Service Integration
 
-            # Check if market probability is mispriced
-            current_prob = market.probabilities[0]  # Assuming Yes is first outcome
-            fair_prob = 0.7 if predicted_outcome == 'Yes' else 0.3
+Update [`web/backend/weather_service.py`](../web/backend/weather_service.py):
 
-            if abs(current_prob - fair_prob) > self.min_probability_edge:
-                return {
-                    'market_id': market.market_id,
-                    'predicted_outcome': predicted_outcome,
-                    'current_probability': current_prob,
-                    'fair_probability': fair_prob,
-                    'edge': abs(current_prob - fair_prob),
-                    'recommended_action': 'buy' if current_prob < fair_prob else 'sell'
-                }
+```python
+# Add Met Office import
+try:
+    from met_office_optimized_client import MetOfficeOptimizedClient, CallPriority
+    MET_OFFICE_CLIENT_AVAILABLE = True
+except ImportError:
+    MET_OFFICE_CLIENT_AVAILABLE = False
 
-        return None
+class WeatherService:
+    def __init__(self):
+        # Initialize Met Office client
+        met_office_key = os.getenv('MET_OFFICE_API_KEY')
+        if (met_office_key and
+            met_office_key != 'mock_met_office_key' and
+            MET_OFFICE_CLIENT_AVAILABLE):
+            self.met_office_client = MetOfficeOptimizedClient(met_office_key)
+            logger.info("Met Office client initialized for London")
 
-    def execute_arbitrage_trade(self, opportunity):
-        """Execute the arbitrage trade"""
-        market_id = opportunity['market_id']
-        outcome = opportunity['predicted_outcome']
-        action = opportunity['recommended_action']
-
-        # Calculate position size
-        portfolio = self.client.get_portfolio()
-        position_size = min(
-            self.max_position_size * portfolio.total_value,
-            1000  # Maximum trade size
-        )
-
-        # Get orderbook for pricing
-        orderbook = self.client.get_orderbook(market_id)
-
-        # Place order
-        if action == 'buy':
-            price = orderbook.asks[0].price
-            side = 'buy'
-        else:
-            price = orderbook.bids[0].price
-            side = 'sell'
-
-        order = self.client.place_order(
-            market_id=market_id,
-            outcome=outcome,
-            side=side,
-            price=price,
-            size=position_size
-        )
-
-        return order
-
-    def run(self):
-        """Main bot loop"""
-        while True:
+    def get_london_weather_optimized(self) -> Dict[str, Any]:
+        """Get London weather with Met Office priority"""
+        if self.met_office_client:
             try:
-                # Find arbitrage opportunities
-                opportunities = self.identify_arbitrage_opportunities()
-
-                # Execute trades for best opportunities
-                for opportunity in opportunities[:3]:  # Top 3 opportunities
-                    if opportunity['edge'] > self.min_probability_edge:
-                        order = self.execute_arbitrage_trade(opportunity)
-                        print(f"Executed arbitrage trade: {order.order_id}")
-
-                # Wait before next iteration
-                time.sleep(300)  # 5 minutes
-
+                return self.met_office_client.get_london_weather(CallPriority.CRITICAL)
             except Exception as e:
-                print(f"Error in bot loop: {e}")
-                time.sleep(60)  # Wait 1 minute on error
+                logger.error(f"Met Office error: {e}")
 
-# Usage
-bot = WeatherArbitrageBot(api_key='your_key', jwt_token='your_token')
-bot.run()
+        # Fallback to Open-Meteo
+        return self.get_open_meteo_weather("London")
+```
+
+### Intelligent Caching Strategy
+
+#### Cache Levels
+
+##### Level 1: Memory Cache (5 minutes)
+
+- Instant response for repeated requests
+- London current data cached in RAM
+- Automatic expiration and refresh
+
+##### Level 2: Database Cache (30 minutes)
+
+- Persistent storage in SQLite
+- Structured data for quick queries
+- Reduces API calls for recent data
+
+##### Level 3: Extended Cache (2 hours)
+
+- Long-term storage for forecasts
+- Historical data preservation
+- Fallback data availability
+
+#### Cache Implementation
+
+```sql
+-- Cache table structure
+SELECT raw_data FROM weather_data
+WHERE source_id = (SELECT id FROM weather_sources WHERE source_name = 'met_office')
+AND location = 'London'
+AND datetime(created_at) > datetime('now', '-30 minutes')
+ORDER BY created_at DESC LIMIT 1;
+```
+
+### Monitoring and Alerts
+
+#### Real-Time Usage Dashboard
+
+```
+📊 MET OFFICE API STATUS
+┌─────────────────────────────────────┐
+│ 🔥 LONDON WEATHER MONITORING       │
+├─────────────────────────────────────┤
+│ Calls today: 127/350 (36%)         │
+│ Calls this hour: 8/15 (53%)        │
+│ London data age: 12 minutes        │
+│ Cache hit rate: 78%                │
+│ Next London call: 14:15 (2 min)    │
+│ Fallback status: Inactive          │
+└─────────────────────────────────────┘
+```
+
+#### Alert Thresholds
+
+```python
+ALERT_THRESHOLDS = {
+    'daily_usage_warning': 0.8,     # 280/350 calls
+    'daily_usage_critical': 0.95,   # 332/350 calls
+    'hourly_usage_warning': 0.8,    # 12/15 calls
+    'cache_hit_rate_low': 0.5,      # <50% cache efficiency
+    'london_data_stale': 1800       # >30 minutes old
+}
+```
+
+### Fallback Strategy
+
+#### Automatic Fallback Chain
+
+```
+1️⃣ Met Office (Primary)
+├── ✅ Official UK weather data
+├── ✅ High accuracy for London
+└── ⚠️ Limited to 350 calls/day
+
+2️⃣ Open-Meteo (Fallback)
+├── ✅ Unlimited calls
+├── ✅ Global coverage
+└── ⚠️ Lower precision for UK
+
+3️⃣ Cached Data (Emergency)
+├── ✅ Always available
+├── ✅ Validated historical data
+└── ⚠️ May be outdated
+```
+
+#### Fallback Logic
+
+```python
+def get_london_weather_with_fallback() -> Dict:
+    # 1. Try Met Office (if quota available)
+    if met_office_quota_available() and should_make_london_call():
+        data = met_office_client.get_london_weather()
+        if data: return data
+
+    # 2. Check cache
+    cached_data = cache_manager.get_cached_london_data()
+    if cached_data and not is_stale(cached_data):
+        return cached_data
+
+    # 3. Fallback to Open-Meteo
+    return open_meteo_client.get_weather(51.5074, -0.1278)
 ```
 
 ## Error Handling
@@ -1279,22 +1242,7 @@ bot.run()
 }
 ```
 
-### Common Error Codes
-
-| Error Code                 | Description                | Resolution                    |
-| -------------------------- | -------------------------- | ----------------------------- |
-| `INVALID_API_KEY`          | API key is invalid         | Check your API key            |
-| `RATE_LIMIT_EXCEEDED`      | Too many requests          | Wait and retry                |
-| `INVALID_PARAMETERS`       | Request parameters invalid | Check parameter format        |
-| `MARKET_NOT_FOUND`         | Market does not exist      | Verify market ID              |
-| `INSUFFICIENT_BALANCE`     | Not enough funds           | Check account balance         |
-| `ORDER_REJECTED`           | Order rejected by exchange | Check order parameters        |
-| `WEATHER_DATA_UNAVAILABLE` | Weather data not available | Try different location/source |
-| `SERVICE_UNAVAILABLE`      | Service temporarily down   | Retry later                   |
-
-### Error Handling Examples
-
-#### Python Error Handling
+### Python Error Handling
 
 ```python
 from climatetrade.client import ClimaTradeClient
@@ -1329,30 +1277,6 @@ except Exception as e:
     # Log error for debugging
 ```
 
-#### JavaScript Error Handling
-
-```javascript
-async function safeApiCall() {
-  try {
-    const weather = await climaTrade.getWeather('London,UK');
-    console.log(`Temperature: ${weather.current.temperature}°C`);
-  } catch (error) {
-    if (error.code === 'RATE_LIMIT_EXCEEDED') {
-      console.log(`Rate limited. Retry after ${error.retry_after} seconds`);
-      setTimeout(() => safeApiCall(), error.retry_after * 1000);
-    } else if (error.code === 'INVALID_API_KEY') {
-      console.error('Invalid API key');
-      // Prompt user to update API key
-    } else if (error.code === 'WEATHER_DATA_UNAVAILABLE') {
-      console.log('Weather data unavailable, trying backup source');
-      // Try alternative weather source
-    } else {
-      console.error(`API error: ${error.code} - ${error.message}`);
-    }
-  }
-}
-```
-
 ## Rate Limiting
 
 ### Rate Limits
@@ -1374,25 +1298,45 @@ X-RateLimit-Reset: 1640995200
 X-RateLimit-Retry-After: 3600
 ```
 
-### Handling Rate Limits
+### Backend Rate Limiting Middleware
 
 ```python
+# middleware/rate_limit.py
+from fastapi import Request, HTTPException
+from starlette.middleware.base import BaseHTTPMiddleware
 import time
-from climatetrade.exceptions import RateLimitError
+from collections import defaultdict
+import os
 
-def handle_rate_limit(func):
-    def wrapper(*args, **kwargs):
-        while True:
-            try:
-                return func(*args, **kwargs)
-            except RateLimitError as e:
-                print(f"Rate limited. Waiting {e.retry_after} seconds")
-                time.sleep(e.retry_after)
-    return wrapper
+class RateLimitMiddleware(BaseHTTPMiddleware):
+    def __init__(self, app, max_requests: int = 100, window_seconds: int = 60):
+        super().__init__(app)
+        self.max_requests = int(os.getenv("RATE_LIMIT_REQUESTS", max_requests))
+        self.window_seconds = int(os.getenv("RATE_LIMIT_WINDOW", window_seconds))
+        self.requests = defaultdict(list)
 
-@handle_rate_limit
-def get_weather_data(location):
-    return client.get_weather(location)
+    async def dispatch(self, request: Request, call_next):
+        client_ip = request.client.host
+        current_time = time.time()
+
+        # Clean old requests
+        self.requests[client_ip] = [
+            req_time for req_time in self.requests[client_ip]
+            if current_time - req_time < self.window_seconds
+        ]
+
+        # Check rate limit
+        if len(self.requests[client_ip]) >= self.max_requests:
+            raise HTTPException(
+                status_code=429,
+                detail="Too many requests. Please try again later."
+            )
+
+        # Add current request
+        self.requests[client_ip].append(current_time)
+
+        response = await call_next(request)
+        return response
 ```
 
 ## SDKs and Libraries
@@ -1433,50 +1377,205 @@ const weather = await ct.weather.get('London,UK');
 const markets = await ct.markets.search('temperature London');
 ```
 
-#### Go SDK
+## Data Validation
 
-```bash
-go get github.com/climatetrade/climatetrade-go
+### Data Validation with Pydantic
+
+```python
+# models.py
+from pydantic import BaseModel, validator, Field
+from typing import Optional, List
+from datetime import datetime
+
+class WeatherDataRequest(BaseModel):
+    location: Optional[str] = Field(None, max_length=50)
+    hours: int = Field(24, ge=1, le=168)  # 1 hour to 1 week
+
+    @validator('location')
+    def validate_location(cls, v):
+        if v and not v.replace(' ', '').replace(',', '').replace('-', '').isalnum():
+            raise ValueError('Location contains invalid characters')
+        return v
+
+class WeatherDataResponse(BaseModel):
+    timestamp: str
+    location: str
+    source: str
+    temperature: Optional[float]
+    humidity: Optional[float]
+    precipitation: Optional[float]
+    wind_speed: Optional[float]
+    description: Optional[str]
+
+class MarketOverviewResponse(BaseModel):
+    market_id: str
+    question: str
+    volume: float = Field(ge=0)
+    liquidity: float = Field(ge=0)
+    data_points: int = Field(ge=0)
+    last_update: Optional[str]
+
+class TradingDataResponse(BaseModel):
+    date: str
+    trades: int = Field(ge=0)
+    volume: float = Field(ge=0)
+    avg_price: float = Field(ge=0)
+    total_pnl: float
 ```
 
-```go
-package main
+## Development
 
-import (
-    "fmt"
-    "github.com/climatetrade/climatetrade-go"
-)
+### Database Seeding Scripts
 
-func main() {
-    client := climatetrade.NewClient("your_api_key")
+#### Weather Data Seeder
 
-    weather, err := client.Weather.Get("London,UK")
-    if err != nil {
-        panic(err)
-    }
+```python
+# scripts/seed_weather_data.py
+import sqlite3
+from datetime import datetime, timedelta
+import random
+import os
 
-    fmt.Printf("Temperature: %.1f°C\n", weather.Current.Temperature)
-}
+def seed_weather_data():
+    """Seed weather data for testing and development"""
+
+    # Connect to database
+    db_path = os.path.join(os.path.dirname(__file__), '..', 'data', 'climatetrade.db')
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+
+    # Ensure weather_sources table has data
+    cursor.execute("""
+        INSERT OR IGNORE INTO weather_sources (id, source_name, description, api_key_required, active)
+        VALUES (1, 'Open-Meteo', 'Free weather API', 0, 1)
+    """)
+
+    # Generate 24 hours of sample data
+    base_time = datetime.now()
+    locations = ['London,UK', 'New York,NY']
+
+    for location in locations:
+        for i in range(24):
+            timestamp = base_time - timedelta(hours=23-i)
+
+            # Generate realistic weather data
+            temp_base = 15 if 'London' in location else 25
+            temperature = temp_base + random.uniform(-5, 5)
+            humidity = random.uniform(40, 80)
+            precipitation = random.uniform(0, 1) if random.random() < 0.3 else 0
+            wind_speed = random.uniform(0, 15)
+
+            descriptions = ['Clear sky', 'Partly cloudy', 'Cloudy', 'Light rain', 'Overcast']
+            description = random.choice(descriptions)
+
+            cursor.execute("""
+                INSERT INTO weather_data
+                (timestamp, location_name, source_id, temperature, humidity,
+                 precipitation, wind_speed, weather_description)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                timestamp.isoformat(),
+                location,
+                1,
+                round(temperature, 1),
+                round(humidity, 1),
+                round(precipitation, 2),
+                round(wind_speed, 1),
+                description
+            ))
+
+    conn.commit()
+    conn.close()
+    print(f"Seeded weather data for {len(locations)} locations with 24 hours each")
+
+if __name__ == "__main__":
+    seed_weather_data()
 ```
 
-### Community Libraries
+#### Market Data Seeder
 
-- **R Package**: `install.packages("climatetrade")`
-- **Java Library**: Maven dependency available
-- **C# SDK**: NuGet package available
-- **Rust Crate**: `cargo add climatetrade`
+```python
+# scripts/seed_market_data.py
+import sqlite3
+from datetime import datetime, timedelta
+import random
+import os
 
-### Third-party Integrations
+def seed_market_data():
+    """Seed market data for testing"""
 
-- **TradingView**: Pine Script integration
-- **MetaTrader**: MQL5 integration
-- **Excel**: Add-in for spreadsheet integration
-- **Google Sheets**: Custom functions
+    db_path = os.path.join(os.path.dirname(__file__), '..', 'data', 'climatetrade.db')
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+
+    # Sample market questions
+    markets = [
+        {
+            'id': 'will-it-rain-london-2025',
+            'question': 'Will it rain in London on September 10, 2025?',
+            'volume': 125000,
+            'liquidity': 45000
+        },
+        {
+            'id': 'temp-above-20-london-sept',
+            'question': 'Will London temperature exceed 20°C on September 15, 2025?',
+            'volume': 89000,
+            'liquidity': 32000
+        }
+    ]
+
+    for market in markets:
+        # Insert market
+        cursor.execute("""
+            INSERT OR REPLACE INTO polymarket_markets
+            (market_id, question, volume, liquidity)
+            VALUES (?, ?, ?, ?)
+        """, (market['id'], market['question'], market['volume'], market['liquidity']))
+
+        # Generate time series data
+        base_time = datetime.now()
+        for i in range(24):
+            timestamp = base_time - timedelta(hours=23-i)
+
+            # Simulate probability changes
+            base_prob = 0.5 + random.uniform(-0.2, 0.2)
+            probability = max(0.01, min(0.99, base_prob))
+            volume = random.uniform(100, 1000)
+
+            cursor.execute("""
+                INSERT INTO polymarket_data
+                (market_id, timestamp, outcome_name, probability, volume)
+                VALUES (?, ?, ?, ?, ?)
+            """, (
+                market['id'],
+                timestamp.isoformat(),
+                'Yes',
+                probability,
+                volume
+            ))
+
+            cursor.execute("""
+                INSERT INTO polymarket_data
+                (market_id, timestamp, outcome_name, probability, volume)
+                VALUES (?, ?, ?, ?, ?)
+            """, (
+                market['id'],
+                timestamp.isoformat(),
+                'No',
+                1 - probability,
+                volume
+            ))
+
+    conn.commit()
+    conn.close()
+    print(f"Seeded market data for {len(markets)} markets")
+
+if __name__ == "__main__":
+    seed_market_data()
+```
 
 ---
 
-**API Documentation Version**: 1.0
-**Last Updated**: January 2024
+**API Documentation Version**: 2.0
+**Last Updated**: September 2025
 **Contact**: api@climatetrade.ai
-
-For additional support, visit our [Developer Portal](https://developers.climatetrade.ai) or join our [Developer Community](https://community.climatetrade.ai).

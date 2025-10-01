@@ -1,0 +1,340 @@
+/* Weather Trading Component Styles */
+.weather-trading {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.trading-header {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.trading-header h1 {
+  color: #2c3e50;
+  font-size: 2.5rem;
+  margin-bottom: 10px;
+}
+
+.trading-header p {
+  color: #7f8c8d;
+  font-size: 1.2rem;
+}
+
+/* Message Styles */
+.message {
+  padding: 15px;
+  margin-bottom: 20px;
+  border-radius: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.message.success {
+  background-color: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
+}
+
+.message.error {
+  background-color: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  color: inherit;
+}
+
+/* Market Card Styles */
+.market-card {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  margin-bottom: 30px;
+  overflow: hidden;
+}
+
+.market-header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 20px;
+}
+
+.market-header h2 {
+  margin: 0 0 10px 0;
+  font-size: 1.8rem;
+}
+
+.market-stats {
+  display: flex;
+  gap: 20px;
+  font-size: 0.9rem;
+}
+
+.total-volume {
+  font-weight: bold;
+  font-size: 1.1rem;
+}
+
+/* Temperature Ranges */
+.temperature-ranges {
+  padding: 20px;
+}
+
+.temperature-ranges h3 {
+  margin-bottom: 20px;
+  color: #2c3e50;
+  font-size: 1.4rem;
+}
+
+.ranges-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 15px;
+}
+
+.range-card {
+  border: 1px solid #e1e8ed;
+  border-radius: 8px;
+  padding: 15px;
+  background: #f8f9fa;
+  transition: all 0.3s ease;
+}
+
+.range-card:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
+}
+
+.range-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.range-header h4 {
+  margin: 0;
+  color: #2c3e50;
+  font-size: 1.1rem;
+}
+
+.range-header .volume {
+  color: #27ae60;
+  font-weight: bold;
+  font-size: 0.9rem;
+}
+
+.range-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.view-orders-btn {
+  background: #3498db;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background 0.3s ease;
+}
+
+.view-orders-btn:hover:not(:disabled) {
+  background: #2980b9;
+}
+
+.view-orders-btn:disabled {
+  background: #bdc3c7;
+  cursor: not-allowed;
+}
+
+.trade-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+.buy-btn, .sell-btn {
+  flex: 1;
+  padding: 10px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 0.9rem;
+  transition: all 0.3s ease;
+}
+
+.buy-btn {
+  background: #27ae60;
+  color: white;
+}
+
+.buy-btn:hover:not(:disabled) {
+  background: #229954;
+}
+
+.sell-btn {
+  background: #e74c3c;
+  color: white;
+}
+
+.sell-btn:hover:not(:disabled) {
+  background: #c0392b;
+}
+
+.buy-btn:disabled, .sell-btn:disabled {
+  background: #bdc3c7;
+  cursor: not-allowed;
+}
+
+/* Order Book Styles */
+.order-book {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  padding: 20px;
+  margin-top: 20px;
+}
+
+.order-book h3 {
+  margin-bottom: 20px;
+  color: #2c3e50;
+}
+
+.order-book-content {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.bids, .asks {
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 15px;
+}
+
+.bids h4 {
+  color: #27ae60;
+  margin-bottom: 15px;
+}
+
+.asks h4 {
+  color: #e74c3c;
+  margin-bottom: 15px;
+}
+
+.orders-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.order-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 0.9rem;
+}
+
+.order-item.bid {
+  background: rgba(39, 174, 96, 0.1);
+  border-left: 3px solid #27ae60;
+}
+
+.order-item.ask {
+  background: rgba(231, 76, 60, 0.1);
+  border-left: 3px solid #e74c3c;
+}
+
+/* Trading Info Styles */
+.trading-info {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  padding: 20px;
+  margin-top: 30px;
+}
+
+.trading-info h3 {
+  text-align: center;
+  margin-bottom: 20px;
+  color: #2c3e50;
+}
+
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 20px;
+}
+
+.info-item {
+  text-align: center;
+  padding: 20px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e1e8ed;
+}
+
+.info-item h4 {
+  color: #2c3e50;
+  margin-bottom: 10px;
+  font-size: 1.1rem;
+}
+
+.info-item p {
+  color: #7f8c8d;
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .weather-trading {
+    padding: 10px;
+  }
+
+  .trading-header h1 {
+    font-size: 2rem;
+  }
+
+  .ranges-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .order-book-content {
+    grid-template-columns: 1fr;
+  }
+
+  .market-stats {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .trade-buttons {
+    flex-direction: column;
+  }
+}
+
+/* Loading Animation */
+@keyframes pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.5; }
+  100% { opacity: 1; }
+}
+
+.view-orders-btn:disabled,
+.buy-btn:disabled,
+.sell-btn:disabled {
+  animation: pulse 1.5s infinite;
+}

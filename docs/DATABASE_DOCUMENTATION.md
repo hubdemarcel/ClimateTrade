@@ -561,6 +561,40 @@ CREATE TABLE api_rate_limits (
 );
 ```
 
+### Relationships
+
+The database schema includes the following key relationships:
+
+- **Weather Data Relationships**:
+
+  - `weather_data.source_id` → `weather_sources.id`
+  - `weather_forecasts.source_id` → `weather_sources.id`
+
+- **Polymarket Data Relationships**:
+
+  - `polymarket_markets.event_id` → `polymarket_events.event_id`
+  - `polymarket_data.market_id` → `polymarket_markets.market_id`
+  - `polymarket_trades.market_id` → `polymarket_markets.market_id`
+  - `polymarket_orderbook.market_id` → `polymarket_markets.market_id`
+
+- **Trading System Relationships**:
+
+  - `agent_execution_logs.strategy_id` → `trading_strategies.id`
+  - `agent_execution_logs.market_id` → `polymarket_markets.market_id`
+  - `agent_execution_logs.event_id` → `polymarket_events.event_id`
+  - `trading_history.strategy_id` → `trading_strategies.id`
+  - `trading_history.market_id` → `polymarket_markets.market_id`
+  - `trading_history.execution_id` → `agent_execution_logs.execution_id`
+  - `portfolio_positions.market_id` → `polymarket_markets.market_id`
+  - `portfolio_positions.strategy_id` → `trading_strategies.id`
+
+- **Backtesting Relationships**:
+  - `backtest_configs.strategy_id` → `trading_strategies.id`
+  - `backtest_results.config_id` → `backtest_configs.id`
+  - `backtest_trades.backtest_id` → `backtest_results.backtest_id`
+  - `backtest_trades.market_id` → `polymarket_markets.market_id`
+  - `risk_analysis.backtest_id` → `backtest_results.backtest_id`
+
 ## Data Models
 
 ### Weather Data Model
@@ -1017,8 +1051,8 @@ PRAGMA cache_size = 1000000;
 
 ---
 
-**Database Documentation Version**: 1.0
-**Last Updated**: January 2024
+**Database Documentation Version**: 1.1
+**Last Updated**: September 2025
 **Schema Version**: 1.0.0
 
 For additional support, refer to the [Setup & Installation Guide](SETUP_INSTALLATION.md) or contact the development team.

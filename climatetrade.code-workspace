@@ -3,5 +3,10 @@
 		{
 			"path": "."
 		}
-	]
+	],
+	"extensions": {
+		"recommendations": [
+			"google.gemini-cli-vscode-ide-companion"
+		]
+	}
 }
