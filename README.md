@@ -1,4 +1,5 @@
-﻿﻿# ClimaTrade AI - Weather-Informed Trading Intelligence
+----
+# ClimaTrade AI - Weather-Informed Trading Intelligence
 
 ## Executive Summary
 
@@ -100,41 +101,41 @@ docker compose -f docker-compose.dev.yml up -d
 
 | Document                                    | Purpose                               | Quick Access                           |
 | ------------------------------------------- | ------------------------------------- | -------------------------------------- |
-| **[SETUP.md](docs/SETUP.md)**               | Complete setup and installation guide | [Setup Guide](docs/SETUP.md)           |
-| **[API.md](docs/API.md)**                   | API documentation and integration     | [API Docs](docs/API.md)                |
-| **[DATABASE.md](docs/DATABASE.md)**         | Database schema and management        | [Database Docs](docs/DATABASE.md)      |
-| **[FRONTEND.md](docs/FRONTEND.md)**         | Frontend architecture and components  | [Frontend Docs](docs/FRONTEND.md)      |
-| **[DEPLOYMENT.md](docs/DEPLOYMENT.md)**     | Production deployment and operations  | [Deployment Guide](docs/DEPLOYMENT.md) |
-| **[ARCHITECTURE.md](docs/ARCHITECTURE.md)** | System architecture and design        | [Architecture](docs/ARCHITECTURE.md)   |
-| **[OPERATIONS.md](docs/OPERATIONS.md)**     | System operations and maintenance     | [Operations](docs/OPERATIONS.md)       |
+| **SETUP.md**               | Complete setup and installation guide | Setup Guide           |
+| **API.md**                   | API documentation and integration     | API Docs                |
+| **DATABASE.md**         | Database schema and management        | Database Docs      |
+| **FRONTEND.md**         | Frontend architecture and components  | Frontend Docs      |
+| **DEPLOYMENT.md**     | Production deployment and operations  | Deployment Guide |
+| **ARCHITECTURE.md** | System architecture and design        | Architecture   |
+| **OPERATIONS.md**     | System operations and maintenance     | Operations       |
 
 ### 🔧 Development & Contribution
 
 | Document                                    | Purpose                    | Audience                |
 | ------------------------------------------- | -------------------------- | ----------------------- |
-| **[CONTRIBUTING.md](docs/CONTRIBUTING.md)** | Contribution guidelines    | All contributors        |
-| **[ARCHITECTURE.md](docs/ARCHITECTURE.md)** | System design and patterns | Architects, Senior Devs |
+| **CONTRIBUTING.md** | Contribution guidelines    | All contributors        |
+| **ARCHITECTURE.md** | System design and patterns | Architects, Senior Devs |
 
 ## Quick Reference by Role
 
 ### For New Developers
 
-1. **[SETUP.md](docs/SETUP.md)** - Environment setup (5-10 minutes)
-2. **[ARCHITECTURE.md](docs/ARCHITECTURE.md)** - System understanding
-3. **[API.md](docs/API.md)** - API integration
-4. **[CONTRIBUTING.md](docs/CONTRIBUTING.md)** - Contribution guidelines
+1. **SETUP.md** - Environment setup (5-10 minutes)
+2. **ARCHITECTURE.md** - System understanding
+3. **API.md** - API integration
+4. **CONTRIBUTING.md** - Contribution guidelines
 
 ### For System Administrators
 
-1. **[SETUP.md](docs/SETUP.md)** - Complete installation
-2. **[DEPLOYMENT.md](docs/DEPLOYMENT.md)** - Production deployment
-3. **[OPERATIONS.md](docs/OPERATIONS.md)** - Ongoing operations
+1. **SETUP.md** - Complete installation
+2. **DEPLOYMENT.md** - Production deployment
+3. **OPERATIONS.md** - Ongoing operations
 
 ### For DevOps Engineers
 
-1. **[DEPLOYMENT.md](docs/DEPLOYMENT.md)** - Deployment procedures
-2. **[ARCHITECTURE.md](docs/ARCHITECTURE.md)** - Infrastructure design
-3. **[OPERATIONS.md](docs/OPERATIONS.md)** - Monitoring and maintenance
+1. **DEPLOYMENT.md** - Deployment procedures
+2. **ARCHITECTURE.md** - Infrastructure design
+3. **OPERATIONS.md** - Monitoring and maintenance
 
 ## Key Features
 
@@ -192,6 +193,8 @@ docker compose -f docker-compose.dev.yml up -d
 - [x] Basic backtesting framework
 - [x] Data validation framework
 - [x] Web dashboard completion
+- [x] Directory structure reorganization (Phase 1)
+- [x] Documentation maintenance guidelines established
 
 ### Phase 2: Advanced Features 🚧
 
@@ -218,19 +221,19 @@ docker compose -f docker-compose.dev.yml up -d
 
 ### 📖 Documentation
 
-- **[Full Documentation Index](docs/DOCUMENTATION_INDEX.md)** - Complete list of all documentation
-- **[Troubleshooting Guide](docs/OPERATIONS.md)** - Common issues and solutions
-- **[API Reference](docs/API.md)** - Complete API documentation
+- **Full Documentation Index** - Complete list of all documentation
+- **Troubleshooting Guide** - Common issues and solutions
+- **API Reference** - Complete API documentation
 
 ### 🆘 Support
 
-- **Issues**: [GitHub Issues](https://github.com/your-org/climatetrade/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/your-org/climatetrade/discussions)
+- **Issues**: GitHub Issues
+- **Discussions**: GitHub Discussions
 - **Documentation Issues**: Create an issue with the `documentation` label
 
 ### 🤝 Contributing
 
-We welcome contributions! Please see our **[Contributing Guide](docs/CONTRIBUTING.md)** for:
+We welcome contributions! Please see our **Contributing Guide** for:
 
 - Development workflow
 - Code standards
@@ -239,13 +242,13 @@ We welcome contributions! Please see our **[Contributing Guide](docs/CONTRIBUTIN
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License - see the LICENSE file for details.
 
 ## Contact
 
 - **Project Lead**: [Your Name]
-- **Technical Support**: [support@climatetrade.ai](mailto:support@climatetrade.ai)
-- **Documentation Issues**: [docs@climatetrade.ai](mailto:docs@climatetrade.ai)
+- **Technical Support**: support@climatetrade.ai
+- **Documentation Issues**: docs@climatetrade.ai
 
 ---
 
